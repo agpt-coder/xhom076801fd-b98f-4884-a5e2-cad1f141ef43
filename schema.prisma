@@ -1,0 +1,136 @@
+// datasource db defines the database connection settings.
+// It is configured for PostgreSQL and uses an environment variable for the connection URL.
+// The 'extensions' feature enables the use of PostgreSQL-specific data types.
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+}
+
+// generator db configures Prisma Client settings.
+// It is set up to use Prisma Client Python with asyncio interface and specific features.
+generator db {
+  provider             = "prisma-client-py"
+  interface            = "asyncio"
+  recursive_type_depth = 5
+  previewFeatures      = ["postgresqlExtensions"]
+}
+
+model User {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  email     String   @unique
+  password  String
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  UserSettings  UserSettings[]
+  Devices       UserDevice[]
+  Automations   Automation[]
+  Notifications Notification[]
+}
+
+model UserSettings {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String
+  settings  Json
+  updatedAt DateTime @updatedAt
+
+  User User @relation(fields: [userId], references: [id])
+}
+
+model Device {
+  id           String    @id @default(dbgenerated("gen_random_uuid()"))
+  name         String
+  deviceType   String
+  isOnline     Boolean   @default(false)
+  lastOnlineAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  UserDevices       UserDevice[]
+  Controls          Control[]
+  DeviceIntegration DeviceIntegration[]
+}
+
+model UserDevice {
+  id       String @id @default(dbgenerated("gen_random_uuid()"))
+  userId   String
+  deviceId String
+
+  User   User   @relation(fields: [userId], references: [id])
+  Device Device @relation(fields: [deviceId], references: [id])
+}
+
+model Control {
+  id         String   @id @default(dbgenerated("gen_random_uuid()"))
+  deviceId   String
+  command    String
+  value      Json
+  executedAt DateTime @default(now())
+
+  Device Device @relation(fields: [deviceId], references: [id])
+}
+
+model Automation {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String
+  name      String
+  triggers  Json
+  actions   Json
+  isEnabled Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  User User @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String    @id @default(dbgenerated("gen_random_uuid()"))
+  userId    String
+  message   String
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  User User @relation(fields: [userId], references: [id])
+}
+
+model ThirdPartyIntegration {
+  id          String   @id @default(dbgenerated("gen_random_uuid()"))
+  name        String
+  apiEndpoint String
+  apiKey      String
+  createdAt   DateTime @default(now())
+
+  DeviceIntegrations DeviceIntegration[]
+}
+
+model DeviceIntegration {
+  id                      String @id @default(dbgenerated("gen_random_uuid()"))
+  deviceId                String
+  thirdPartyIntegrationId String
+
+  Device                Device                @relation(fields: [deviceId], references: [id])
+  ThirdPartyIntegration ThirdPartyIntegration @relation(fields: [thirdPartyIntegrationId], references: [id])
+}
+
+model VoiceCommand {
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
+  command   String
+  action    String // JSON containing what to do
+  createdAt DateTime @default(now())
+}
+
+model SystemUpdate {
+  id          String    @id @default(dbgenerated("gen_random_uuid()"))
+  version     String
+  description String
+  releasedAt  DateTime
+  appliedAt   DateTime?
+}
+
+enum UserRole {
+  ADMIN
+  USER
+  MODERATOR
+}
+
